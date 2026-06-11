@@ -1,4 +1,80 @@
 <laravel-boost-guidelines>
+=== .ai/laravel-docker-template rules ===
+
+# Laravel Docker Template
+
+The `laravel-docker-template` directory is the reusable source template for this project's Docker setup.
+
+When changing Docker, runtime, or local development configuration in the project root, make the equivalent generic change in `laravel-docker-template` during the same task.
+
+This applies to:
+
+- `.dockerignore`
+- `.env.docker.example`
+- `Dockerfile`
+- `Makefile`
+- `docker-compose.yml`
+- `docker-compose.override.yml`
+- `docker/app/*`
+- Docker-related README instructions
+
+Keep the template reusable. Do not copy project-specific secrets, local machine paths, app names, generated files, or one-off values into `laravel-docker-template` unless the change is intentionally part of the reusable template.
+
+=== .ai/project-documentation rules ===
+
+# Project Documentation Guideline
+
+This project uses documentation as the source of truth for business logic.
+
+Before implementing a feature, check:
+
+- `docs/technical-specification.md`
+- `docs/business-rules.md`
+- relevant files in `docs/modules/*.md`
+
+When changing business logic, update the relevant documentation in the same task.
+
+If a module documentation file does not exist yet, create it before implementing the feature.
+
+Business logic changes include:
+
+- changed calculations;
+- changed validation rules;
+- changed statuses;
+- changed entity relationships;
+- changed user roles or permissions;
+- changed receipt, payment, accrual, tariff, normative, meter, or service logic.
+
+Update `docs/changelog.md` when business rules or module behavior change.
+
+A task is not complete until related docs are updated.
+
+=== .ai/project-testing rules ===
+
+# Project Testing
+
+This project uses Makefile commands for all test execution.
+
+## Required test command
+
+Always run tests using:
+
+```bash
+make test
+```
+
+=== .ai/ui-design-preview rules ===
+
+# UI Design Preview
+
+When changing any user-facing UI or visual design, keep the relevant preview surface in sync during the same task.
+
+The preview must account for every affected design area in the project, including pages, layouts, navigation, forms, tables, cards, modals, filters, empty states, loading states, error states, responsive states, and dark mode when the project supports it.
+
+Use the preview surface that exists for the current project: a Blade preview page, Storybook story, component playground, screenshot fixture, or the affected view itself. Do not introduce domain-specific examples unless the project actually has that domain.
+
+Every project should expose the design preview through a stable route or page, such as `/design-preview`, in local/development or behind appropriate access control. If no dedicated preview exists yet, create one or update the affected route directly before treating the UI change as complete.
+
 === foundation rules ===
 
 # Laravel Boost Guidelines
@@ -10,9 +86,11 @@ The Laravel Boost guidelines are specifically curated by Laravel maintainers for
 This application is a Laravel application and its main Laravel ecosystems package & versions are below. You are an expert with them all. Ensure you abide by these specific packages & versions.
 
 - php - 8.4
+- filament/filament (FILAMENT) - v5
 - laravel/framework (LARAVEL) - v13
 - laravel/octane (OCTANE) - v2
 - laravel/prompts (PROMPTS) - v0
+- livewire/livewire (LIVEWIRE) - v4
 - laravel/boost (BOOST) - v2
 - laravel/mcp (MCP) - v0
 - laravel/pail (PAIL) - v1

@@ -75,6 +75,18 @@ Use the preview surface that exists for the current project: a Blade preview pag
 
 Every project should expose the design preview through a stable route or page, such as `/design-preview`, in local/development or behind appropriate access control. If no dedicated preview exists yet, create one or update the affected route directly before treating the UI change as complete.
 
+=== .ai/without-backfill rules ===
+
+## AI Implementation Rule
+
+Until this rule is removed:
+
+- Never create backfill code.
+- Never create migration jobs for existing records.
+- Never add historical data synchronization.
+- Never mention backfill as a recommended solution.
+- Only implement logic for newly created records going forward.
+
 === foundation rules ===
 
 # Laravel Boost Guidelines

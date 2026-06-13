@@ -5,7 +5,7 @@
             "args": [
                 "exec",
                 "-i",
-                "esepteu-app-1",
+                "shymkenthub-app-1",
                 "php",
                 "artisan",
                 "boost:mcp"

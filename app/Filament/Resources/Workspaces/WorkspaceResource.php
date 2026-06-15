@@ -24,13 +24,13 @@ class WorkspaceResource extends Resource
 
     protected static ?string $navigationLabel = 'Справочник мест';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Бронирования';
+    protected static string|UnitEnum|null $navigationGroup = 'Общий зал';
 
     protected static ?string $modelLabel = 'рабочее место';
 
     protected static ?string $pluralModelLabel = 'Справочник мест';
 
-    protected static ?int $navigationSort = 30;
+    protected static ?int $navigationSort = 10;
 
     public static function form(Schema $schema): Schema
     {

@@ -28,6 +28,8 @@ class ActivityLogResource extends Resource
 
     protected static ?int $navigationSort = 90;
 
+    protected static bool $shouldRegisterNavigation = false;
+
     public static function canCreate(): bool
     {
         return false;

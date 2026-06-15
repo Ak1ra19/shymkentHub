@@ -12,9 +12,17 @@ class EventFactory extends Factory
 {
     public function definition(): array
     {
+        $events = [
+            'Встреча резидентов',
+            'Практикум по продукту',
+            'Нетворкинг для стартапов',
+            'Разбор проектов',
+            'Открытая лекция',
+        ];
+
         return [
-            'title' => fake()->sentence(3),
-            'description' => fake()->paragraph(),
+            'title' => fake()->randomElement($events),
+            'description' => fake('ru_RU')->paragraph(),
             'event_date' => fake()->dateTimeBetween('now', '+30 days')->format('Y-m-d'),
             'event_time' => fake()->time('H:i'),
             'banner_path' => null,

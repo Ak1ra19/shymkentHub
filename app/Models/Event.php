@@ -5,6 +5,8 @@ namespace App\Models;
 use Database\Factories\EventFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class Event extends Model
 {
@@ -18,6 +20,19 @@ class Event extends Model
         'event_time',
         'banner_path',
     ];
+
+    public function getBannerUrlAttribute(): ?string
+    {
+        if (blank($this->banner_path)) {
+            return null;
+        }
+
+        if (Str::startsWith($this->banner_path, ['http://', 'https://'])) {
+            return $this->banner_path;
+        }
+
+        return Storage::disk('public')->url($this->banner_path);
+    }
 
     /**
      * @return array<string, string>

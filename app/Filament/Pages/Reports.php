@@ -18,11 +18,11 @@ class Reports extends Page
 
     protected static ?string $navigationLabel = 'Отчеты';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Контроль';
+    protected static string|UnitEnum|null $navigationGroup = 'Аналитика';
 
     protected static ?string $title = 'Отчеты';
 
-    protected static ?int $navigationSort = 80;
+    protected static ?int $navigationSort = 10;
 
     protected string $view = 'filament.pages.reports';
 
@@ -64,5 +64,27 @@ class Reports extends Page
         return ConferenceRoomRequest::query()
             ->where('status', ConferenceRoomRequestStatus::Pending)
             ->count();
+    }
+
+    public function getWeekBookingsProperty(): int
+    {
+        $from = now()->startOfWeek()->toDateString();
+        $to = now()->endOfWeek()->toDateString();
+
+        return WorkspaceBooking::query()
+            ->whereBetween('booking_date', [$from, $to])
+            ->count()
+            + ConferenceRoomRequest::query()
+                ->whereBetween('booking_date', [$from, $to])
+                ->count();
+    }
+
+    public function getOccupancyPercentProperty(): int
+    {
+        if ($this->activeWorkspaces === 0) {
+            return 0;
+        }
+
+        return (int) round(($this->occupiedWorkspaces / $this->activeWorkspaces) * 100);
     }
 }

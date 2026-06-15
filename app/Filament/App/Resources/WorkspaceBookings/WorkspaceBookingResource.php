@@ -20,11 +20,11 @@ class WorkspaceBookingResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedComputerDesktop;
 
-    protected static ?string $navigationLabel = 'Мои бронирования';
+    protected static ?string $navigationLabel = 'Общий зал';
 
-    protected static ?string $modelLabel = 'бронирование рабочего места';
+    protected static ?string $modelLabel = 'рабочее место';
 
-    protected static ?string $pluralModelLabel = 'Мои бронирования';
+    protected static ?string $pluralModelLabel = 'Общий зал';
 
     protected static string|UnitEnum|null $navigationGroup = 'Бронирования';
 

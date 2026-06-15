@@ -10,6 +10,7 @@ use App\Models\ConferenceRoomRequest;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Models\WorkspaceBooking;
+use App\Models\WorkspaceScheduleSetting;
 use App\Services\ConferenceRoomAvailability;
 use App\Services\WorkspaceAvailability;
 use Filament\Actions\Action;
@@ -142,6 +143,60 @@ class BookingRulesTest extends TestCase
             'starts_at' => '12:00',
             'ends_at' => '13:00',
         ]);
+    }
+
+    public function test_workspace_schedule_setting_changes_first_available_slot(): void
+    {
+        $workspace = Workspace::factory()->create(['number' => 28]);
+
+        WorkspaceScheduleSetting::factory()->create([
+            'starts_on' => now()->toDateString(),
+            'starts_at' => '10:00',
+            'ends_at' => '19:00',
+        ]);
+
+        $slot = app(WorkspaceAvailability::class)->firstAvailableSlotForWorkspace($workspace, now()->toDateString());
+
+        $this->assertSame([
+            'starts_at' => '10:00',
+            'ends_at' => '11:00',
+        ], $slot);
+    }
+
+    public function test_workspace_booking_modal_can_book_full_workday(): void
+    {
+        $user = User::factory()->create();
+        $workspace = Workspace::factory()->create(['number' => 29]);
+
+        WorkspaceScheduleSetting::factory()->create([
+            'starts_on' => now()->toDateString(),
+            'starts_at' => '10:00',
+            'ends_at' => '18:00',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(AppListWorkspaceBookings::class)
+            ->mountAction('create')
+            ->set('mountedActions.0.data.workspace_id', $workspace->id)
+            ->set('mountedActions.0.data.full_day', true)
+            ->assertSet('mountedActions.0.data.starts_at', '10:00')
+            ->assertSet('mountedActions.0.data.ends_at', '18:00')
+            ->callMountedAction()
+            ->assertHasNoActionErrors();
+
+        $this->assertDatabaseHas('workspace_bookings', [
+            'user_id' => $user->id,
+            'workspace_id' => $workspace->id,
+            'workspace_number' => 29,
+            'starts_at' => '10:00',
+            'ends_at' => '18:00',
+        ]);
+
+        $workspaceState = app(WorkspaceAvailability::class)
+            ->hallMapForUser($user, now()->toDateString())
+            ->firstWhere('id', $workspace->id);
+
+        $this->assertSame('mine_full', $workspaceState['status']);
     }
 
     public function test_workspace_start_time_options_skip_busy_intervals(): void

@@ -2,6 +2,9 @@
 
 namespace App\Notifications;
 
+use Filament\Actions\Action;
+use Filament\Notifications\Notification as FilamentNotification;
+use Filament\Support\Icons\Heroicon;
 use Illuminate\Notifications\Notification;
 
 class SystemNotification extends Notification
@@ -27,12 +30,43 @@ class SystemNotification extends Notification
     /**
      * @return array<string, mixed>
      */
+    public function toDatabase(object $notifiable): array
+    {
+        return $this->databaseMessage();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(object $notifiable): array
     {
+        return $this->databaseMessage();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function databaseMessage(): array
+    {
+        $notification = FilamentNotification::make()
+            ->title($this->title)
+            ->body($this->body)
+            ->icon(Heroicon::OutlinedBell)
+            ->iconColor('primary')
+            ->color('primary');
+
+        if ($this->url) {
+            $notification->actions([
+                Action::make('open')
+                    ->label('Открыть')
+                    ->button()
+                    ->url($this->url)
+                    ->markAsRead(),
+            ]);
+        }
+
         return [
-            'title' => $this->title,
-            'body' => $this->body,
-            'url' => $this->url,
+            ...$notification->getDatabaseMessage(),
             'meta' => $this->data,
         ];
     }

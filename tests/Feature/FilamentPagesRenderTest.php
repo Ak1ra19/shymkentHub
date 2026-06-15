@@ -28,7 +28,7 @@ class FilamentPagesRenderTest extends TestCase
         Workspace::factory()->create(['number' => 1]);
 
         Event::factory()->create([
-            'title' => 'Demo day',
+            'title' => 'День открытых проектов',
             'event_date' => now()->addDay()->toDateString(),
             'event_time' => '18:00',
         ]);
@@ -37,12 +37,25 @@ class FilamentPagesRenderTest extends TestCase
             ->get('/app')
             ->assertOk()
             ->assertSee('Главная')
-            ->assertSee('Мои места сегодня');
+            ->assertSee('Сводка на сегодня')
+            ->assertSee('Сегодня в ShymkentHub')
+            ->assertSee('День открытых проектов');
 
         $this->actingAs($user)
             ->get('/app/workspace-bookings')
             ->assertOk()
+            ->assertSee('Общий зал')
+            ->assertSee('Бронирование рабочих мест')
+            ->assertSee('Доступно')
+            ->assertDontSee('Мои бронирования');
+
+        $this->actingAs($user)
+            ->get('/app/profile')
+            ->assertOk()
+            ->assertSee('Мой профиль')
             ->assertSee('Мои бронирования')
+            ->assertSee('Данные резидента')
+            ->assertSee('Настройки профиля')
             ->assertSee('Забронировать место');
 
         $this->actingAs($user)
@@ -57,9 +70,7 @@ class FilamentPagesRenderTest extends TestCase
 
         $this->actingAs($user)
             ->get('/app/events')
-            ->assertOk()
-            ->assertSee('Календарь мероприятий')
-            ->assertSee('Demo day');
+            ->assertNotFound();
     }
 
     public function test_admin_filament_pages_render(): void
@@ -70,7 +81,8 @@ class FilamentPagesRenderTest extends TestCase
             ->get('/admin')
             ->assertOk()
             ->assertSee('Главная')
-            ->assertSee('Заявки на согласование');
+            ->assertSee('Заявки на согласование')
+            ->assertDontSee('Журнал действий');
 
         $this->actingAs($admin)
             ->get('/admin/workspaces')
@@ -78,6 +90,12 @@ class FilamentPagesRenderTest extends TestCase
             ->assertSee('Справочник мест')
             ->assertSee('Закреплено за')
             ->assertSee('Добавить место');
+
+        $this->actingAs($admin)
+            ->get('/admin/workspace-schedule-settings')
+            ->assertOk()
+            ->assertSee('Режим работы зала')
+            ->assertSee('Добавить режим');
 
         $this->actingAs($admin)
             ->get('/admin/booking-calendar')

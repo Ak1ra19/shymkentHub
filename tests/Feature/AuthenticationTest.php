@@ -237,8 +237,8 @@ class AuthenticationTest extends TestCase
         $user = User::factory()->create();
 
         $user->notify(new SystemNotification(
-            title: 'Test',
-            body: 'Body',
+            title: 'Тестовое уведомление',
+            body: 'Текст уведомления',
         ));
 
         $this->actingAs($user)
@@ -249,5 +249,7 @@ class AuthenticationTest extends TestCase
             'notifiable_id' => $user->id,
             'notifiable_type' => User::class,
         ]);
+
+        $this->assertSame('filament', $user->notifications()->first()->data['format']);
     }
 }

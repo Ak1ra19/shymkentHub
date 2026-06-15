@@ -21,7 +21,7 @@ class BookingCalendar extends Page
 
     protected static ?string $title = 'Календарь броней';
 
-    protected static ?int $navigationSort = 40;
+    protected static ?int $navigationSort = 5;
 
     protected string $view = 'filament.pages.booking-calendar';
 
@@ -146,6 +146,21 @@ class BookingCalendar extends Page
         $toLabel = CarbonImmutable::parse($to)->translatedFormat('d F');
 
         return $from === $to ? $fromLabel : $fromLabel.' - '.$toLabel;
+    }
+
+    /**
+     * @return array{total:int, workspace:int, conference:int, pending:int}
+     */
+    public function getSummaryProperty(): array
+    {
+        $entries = $this->entries;
+
+        return [
+            'total' => $entries->count(),
+            'workspace' => $entries->where('type', 'Рабочее место')->count(),
+            'conference' => $entries->where('type', 'Конференц-зал')->count(),
+            'pending' => $entries->where('status', 'На рассмотрении')->count(),
+        ];
     }
 
     /**

@@ -2,11 +2,14 @@
 
 namespace App\Filament\App\Resources\WorkspaceBookings\Schemas;
 
+use App\Models\Workspace;
 use App\Services\WorkspaceAvailability;
 use Carbon\CarbonImmutable;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
@@ -15,7 +18,7 @@ use Filament\Schemas\Schema;
 
 class WorkspaceBookingForm
 {
-    public static function configure(Schema $schema): Schema
+    public static function configure(Schema $schema, bool $workspaceIsSelectable = true): Schema
     {
         return $schema
             ->components([
@@ -35,7 +38,7 @@ class WorkspaceBookingForm
                                     ->minDate(now()->startOfDay())
                                     ->maxDate(now()->endOfDay())
                                     ->live()
-                                    ->afterStateUpdated(fn (mixed $state, Get $get, Set $set): mixed => self::fillNearestWorkspaceSlot($get('workspace_id'), $state, $set, $get('starts_at')))
+                                    ->afterStateUpdated(fn (mixed $state, Get $get, Set $set): mixed => self::fillWorkspaceSlot($get('workspace_id'), $state, $set, $get('starts_at'), (bool) $get('full_day')))
                                     ->required(),
                                 Select::make('starts_at')
                                     ->label('Начало')
@@ -45,14 +48,24 @@ class WorkspaceBookingForm
                                     ))
                                     ->native(false)
                                     ->selectablePlaceholder(false)
+                                    ->disabled(fn (Get $get): bool => (bool) $get('full_day'))
+                                    ->dehydrated()
                                     ->live()
-                                    ->afterStateUpdated(fn (mixed $state, Get $get, Set $set): mixed => self::syncWorkspaceEndTime(
-                                        $get('workspace_id'),
-                                        $get('booking_date'),
-                                        $state,
-                                        $get('ends_at'),
-                                        $set,
-                                    ))
+                                    ->afterStateUpdated(function (mixed $state, Get $get, Set $set): void {
+                                        if ((bool) $get('full_day')) {
+                                            self::fillFullDayWorkspaceSlot($get('booking_date'), $set);
+
+                                            return;
+                                        }
+
+                                        self::syncWorkspaceEndTime(
+                                            $get('workspace_id'),
+                                            $get('booking_date'),
+                                            $state,
+                                            $get('ends_at'),
+                                            $set,
+                                        );
+                                    })
                                     ->required(),
                                 Select::make('ends_at')
                                     ->label('Окончание')
@@ -62,37 +75,92 @@ class WorkspaceBookingForm
                                         $get('starts_at'),
                                     ))
                                     ->native(false)
+                                    ->disabled(fn (Get $get): bool => (bool) $get('full_day'))
+                                    ->dehydrated()
                                     ->nullable(),
                             ]),
+                        Toggle::make('full_day')
+                            ->label('На весь рабочий день')
+                            ->helperText('Место будет забронировано с начала до конца действующего режима работы зала.')
+                            ->live()
+                            ->columnSpanFull()
+                            ->afterStateUpdated(fn (mixed $state, Get $get, Set $set): mixed => self::fillWorkspaceSlot($get('workspace_id'), $get('booking_date'), $set, $get('starts_at'), (bool) $state)),
                     ]),
                 Section::make('Рабочее место')
                     ->columnSpanFull()
-                    ->schema([
-                        Select::make('workspace_id')
-                            ->label('Место')
-                            ->options(fn (Get $get): array => app(WorkspaceAvailability::class)->optionsForSelection(
-                                $get('booking_date'),
-                                $get('starts_at'),
-                                $get('ends_at'),
-                                auth()->user(),
-                            ))
-                            ->default(fn (): ?int => request()->integer('workspace_id') ?: null)
-                            ->searchable()
-                            ->preload()
-                            ->live()
-                            ->afterStateHydrated(fn (mixed $state, Get $get, Set $set): mixed => self::fillNearestWorkspaceSlot($state, $get('booking_date'), $set, $get('starts_at')))
-                            ->afterStateUpdated(fn (mixed $state, Get $get, Set $set): mixed => self::fillNearestWorkspaceSlot($state, $get('booking_date'), $set, $get('starts_at')))
-                            ->helperText('После выбора места время автоматически ставится на ближайший свободный час.')
-                            ->required(),
-                        Placeholder::make('workspace_schedule')
-                            ->label('Занятость')
-                            ->content(fn (Get $get): array => app(WorkspaceAvailability::class)->summaryForWorkspace(
-                                $get('workspace_id'),
-                                $get('booking_date'),
-                            ))
-                            ->bulleted(),
-                    ]),
+                    ->schema(self::workspaceComponents($workspaceIsSelectable)),
             ]);
+    }
+
+    /**
+     * @return array<int, mixed>
+     */
+    private static function workspaceComponents(bool $workspaceIsSelectable): array
+    {
+        if (! $workspaceIsSelectable) {
+            return [
+                Hidden::make('workspace_id')
+                    ->live()
+                    ->afterStateHydrated(fn (mixed $state, Get $get, Set $set): mixed => self::fillWorkspaceSlot($state, $get('booking_date'), $set, $get('starts_at'), (bool) $get('full_day')))
+                    ->afterStateUpdated(fn (mixed $state, Get $get, Set $set): mixed => self::fillWorkspaceSlot($state, $get('booking_date'), $set, $get('starts_at'), (bool) $get('full_day')))
+                    ->required(),
+                Placeholder::make('selected_workspace')
+                    ->label('Выбранное место')
+                    ->content(fn (Get $get): string => self::workspaceLabel($get('workspace_id'))),
+                Placeholder::make('workspace_schedule')
+                    ->label('Занятость')
+                    ->content(fn (Get $get): array => app(WorkspaceAvailability::class)->summaryForWorkspace(
+                        $get('workspace_id'),
+                        $get('booking_date'),
+                    ))
+                    ->bulleted(),
+            ];
+        }
+
+        return [
+            Select::make('workspace_id')
+                ->label('Место')
+                ->options(fn (Get $get): array => app(WorkspaceAvailability::class)->optionsForSelection(
+                    $get('booking_date'),
+                    $get('starts_at'),
+                    $get('ends_at'),
+                    auth()->user(),
+                ))
+                ->default(fn (): ?int => request()->integer('workspace_id') ?: null)
+                ->searchable()
+                ->preload()
+                ->live()
+                ->afterStateHydrated(fn (mixed $state, Get $get, Set $set): mixed => self::fillWorkspaceSlot($state, $get('booking_date'), $set, $get('starts_at'), (bool) $get('full_day')))
+                ->afterStateUpdated(fn (mixed $state, Get $get, Set $set): mixed => self::fillWorkspaceSlot($state, $get('booking_date'), $set, $get('starts_at'), (bool) $get('full_day')))
+                ->helperText('После выбора места время автоматически ставится на ближайший свободный час.')
+                ->required(),
+            Placeholder::make('workspace_schedule')
+                ->label('Занятость')
+                ->content(fn (Get $get): array => app(WorkspaceAvailability::class)->summaryForWorkspace(
+                    $get('workspace_id'),
+                    $get('booking_date'),
+                ))
+                ->bulleted(),
+        ];
+    }
+
+    private static function fillWorkspaceSlot(mixed $workspaceId, mixed $date, Set $set, mixed $preferredStart = null, bool $fullDay = false): void
+    {
+        if ($fullDay) {
+            self::fillFullDayWorkspaceSlot($date, $set);
+
+            return;
+        }
+
+        self::fillNearestWorkspaceSlot($workspaceId, $date, $set, $preferredStart);
+    }
+
+    private static function fillFullDayWorkspaceSlot(mixed $date, Set $set): void
+    {
+        $slot = app(WorkspaceAvailability::class)->fullDaySlot($date);
+
+        $set('starts_at', $slot['starts_at']);
+        $set('ends_at', $slot['ends_at']);
     }
 
     private static function fillNearestWorkspaceSlot(mixed $workspaceId, mixed $date, Set $set, mixed $preferredStart = null): void
@@ -158,5 +226,18 @@ class WorkspaceBookingForm
         preg_match('/\d{2}:\d{2}/', (string) $value, $matches);
 
         return $matches[0] ?? null;
+    }
+
+    private static function workspaceLabel(mixed $workspaceId): string
+    {
+        if (blank($workspaceId)) {
+            return 'Место не выбрано.';
+        }
+
+        $workspace = Workspace::query()->find((int) $workspaceId);
+
+        return $workspace instanceof Workspace
+            ? $workspace->displayName()
+            : 'Рабочее место не найдено.';
     }
 }

@@ -24,7 +24,7 @@ class DatabaseSeeder extends Seeder
         User::query()->updateOrCreate([
             'email' => 'admin@example.com',
         ], [
-            'name' => 'Admin',
+            'name' => 'Администратор',
             'iin' => '000000000001',
             'iin_hash' => hash('sha256', '000000000001'),
             'phone' => '+77070000001',
@@ -39,12 +39,12 @@ class DatabaseSeeder extends Seeder
         User::query()->updateOrCreate([
             'email' => 'test@example.com',
         ], [
-            'name' => 'Test User',
+            'name' => 'Тестовый резидент',
             'iin' => '000000000002',
             'iin_hash' => hash('sha256', '000000000002'),
             'phone' => '+77070000002',
             'position' => 'Резидент',
-            'company' => 'Demo Company',
+            'company' => 'ShymkentHub',
             'role' => UserRole::User,
             'is_blocked' => false,
             'rules_accepted_at' => now(),

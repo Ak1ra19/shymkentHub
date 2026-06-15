@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Enums\WorkspaceBookingStatus;
-use App\Filament\App\Resources\WorkspaceBookings\WorkspaceBookingResource;
+use App\Filament\App\Pages\Auth\EditProfile;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Models\WorkspaceBooking;
@@ -17,6 +17,7 @@ class WorkspaceBookingService
 {
     public function __construct(
         private readonly ActivityLogger $activityLogger,
+        private readonly WorkspaceScheduleService $workspaceSchedule,
     ) {}
 
     /**
@@ -39,6 +40,14 @@ class WorkspaceBookingService
         if ($endsAt <= $startsAt) {
             throw ValidationException::withMessages([
                 'ends_at' => 'Время окончания должно быть позже времени начала.',
+            ]);
+        }
+
+        $schedule = $this->workspaceSchedule->forDate($bookingDate);
+
+        if ($startsAt < $schedule['starts_at'] || $endsAt > $schedule['ends_at']) {
+            throw ValidationException::withMessages([
+                'starts_at' => 'Выберите время в пределах рабочего дня: '.$schedule['label'].'.',
             ]);
         }
 
@@ -82,7 +91,7 @@ class WorkspaceBookingService
                 title: 'Рабочее место забронировано',
                 body: 'Место № '.$booking->workspace_number.' доступно '.$booking->booking_date->format('d.m.Y').' с '.$booking->starts_at->format('H:i').' до '.$booking->ends_at->format('H:i').'.',
                 data: ['booking_id' => $booking->id],
-                url: WorkspaceBookingResource::getUrl('index', panel: 'app'),
+                url: EditProfile::getUrl(panel: 'app'),
             ));
 
             $this->activityLogger->log('workspace_booking.created', $user, $booking, [
@@ -104,7 +113,7 @@ class WorkspaceBookingService
             title: 'Бронирование отменено',
             body: 'Бронирование рабочего места № '.$booking->workspace_number.' отменено.',
             data: ['booking_id' => $booking->id],
-            url: WorkspaceBookingResource::getUrl('index', panel: 'app'),
+            url: EditProfile::getUrl(panel: 'app'),
         ));
 
         $this->activityLogger->log('workspace_booking.cancelled', $actor ?? $booking->user, $booking, [

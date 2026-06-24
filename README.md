@@ -1,74 +1,68 @@
-# Laravel Docker Template
+# ShymkentHub
 
-Reusable Docker setup for Laravel projects that run with Laravel Octane and FrankenPHP.
+CRM / web-приложение для коворкинга ShymkentHub. Проект закрывает основной сценарий работы хаба: регистрация резидентов, бронирование рабочих мест, заявки на конференц-зал, мероприятия, административный контроль и выгрузка отчетов.
 
-## What is included
+Интерфейс проекта сделан на Filament. Отдельного классического фронтенда или REST API здесь нет: пользовательская часть и админка работают как две Filament-панели поверх одной Laravel-логики. При этом основная бизнес-логика вынесена в сервисы, поэтому ее можно переиспользовать в другом дизайне, в Livewire-компонентах, контроллерах или API.
 
-- `Dockerfile` for PHP 8.4, Composer, Node build assets, and FrankenPHP.
-- `docker-compose.yml` for app, queue, scheduler, MariaDB, and Redis.
-- `docker-compose.override.yml` for local development with bind mounts and Vite.
-- `Makefile` with common commands for build, start, logs, tests, dumps, and deploy.
-- `.env.docker.example` with Docker-specific variables you can copy into the target project's `.env`.
+## Стек
 
-## Copy into a project
+- PHP 8.4
+- Laravel 13
+- Filament 5
+- Livewire 4
+- Tailwind CSS 4
+- Laravel Octane + FrankenPHP
+- MariaDB
+- Redis
+- PHPUnit
+- Docker Compose
 
-Copy the contents of this folder into the root of a Laravel project:
+## Основные адреса
 
-```bash
-cp -a laravel-docker-template/. /path/to/your-laravel-project/
-```
+- `/` - редирект на пользовательскую панель.
+- `/app` - кабинет резидента.
+- `/app/login` - вход резидента.
+- `/app/register` - регистрация резидента.
+- `/app/profile` - профиль и история пользователя.
+- `/app/workspace-bookings` - общий зал и бронирование рабочих мест.
+- `/app/conference-room-requests` - заявки на конференц-зал.
+- `/admin` - административная панель.
+- `/admin/booking-calendar` - календарь всех бронирований.
+- `/admin/reports` - отчеты и выгрузка `.xlsx`.
+- `/resident-instructions` - PDF-инструкция для резидентов.
 
-Do not copy the folder itself if you want the Docker files to work from the project root.
+## Быстрый запуск через Docker
 
-## Required project dependency
-
-The target Laravel project must have Octane installed with FrankenPHP:
-
-```bash
-composer require laravel/octane
-php artisan octane:install --server=frankenphp
-```
-
-If you want to install it through Docker after copying the template:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.override.yml run --build --rm --no-deps --entrypoint composer app require laravel/octane --no-scripts
-docker compose -f docker-compose.yml -f docker-compose.override.yml run --rm --no-deps --entrypoint php app artisan package:discover --ansi
-docker compose -f docker-compose.yml -f docker-compose.override.yml run --rm --no-deps --entrypoint php app artisan octane:install --server=frankenphp
-```
-
-Using `--no-scripts` avoids project-specific Composer hooks blocking Octane installation. For example, a project may have `@php artisan boost:update --ansi` in `post-update-cmd`; that command requires Boost to be installed first with `php artisan boost:install`.
-
-## Environment variables
-
-`make init` adds missing variables from `.env.docker.example` to the target project's `.env`. Existing `.env` values are not overwritten.
-
-After that, change the project-specific values:
-
-```env
-DOCKER_PROJECT_NAME=your-project
-APP_NAME="Your Project"
-APP_PORT=8500
-APP_URL=http://localhost:8500
-
-DB_DATABASE=your_project
-MARIADB_TEST_DATABASE=your_project_testing
-FORWARD_DB_PORT=3350
-VITE_PORT=5174
-```
-
-Use different ports when running multiple projects at the same time.
-
-## Start locally
+Проект уже содержит Docker-окружение. Основные команды вынесены в `Makefile`.
 
 ```bash
 make init
 make build
 ```
 
-Open the project at the `APP_URL` value from `.env`.
+После запуска приложение будет доступно по `APP_URL` из `.env`. По умолчанию Docker-шаблон использует:
 
-Useful commands:
+```env
+APP_URL=http://localhost:8500
+APP_PORT=8500
+VITE_PORT=5174
+FORWARD_DB_PORT=3350
+```
+
+Если нужно наполнить проект демо-данными:
+
+```bash
+make artisan artisan_args="db:seed"
+```
+
+Сидеры создают:
+
+- администратора для `/admin`: `admin@example.com` / `password`;
+- тестового резидента для `/app`: телефон `+77070000002` или ИИН `000000000002`, пароль `password`;
+- 60 рабочих мест;
+- несколько тестовых мероприятий.
+
+Полезные команды:
 
 ```bash
 make up
@@ -77,18 +71,346 @@ make logs
 make ps
 make shell
 make test
+make artisan artisan_args="route:list"
+make npm npm_args="run build"
 ```
 
-## Production mode
+## Что реализовано по ТЗ
 
-Set `APP_ENV=production` in `.env` and run:
+### Пользовательская часть
+
+Панель резидента находится в `/app` и построена на Filament.
+
+Реализовано:
+
+- регистрация резидента;
+- вход по телефону или ИИН с паролем;
+- проверка блокировки пользователя при входе;
+- обязательное подтверждение ознакомления с правилами;
+- ссылка на PDF-инструкцию для резидентов;
+- личный dashboard;
+- ближайшие мероприятия и анонсы;
+- быстрые действия для перехода к бронированию;
+- визуальная карта общего зала;
+- бронирование конкретного рабочего места;
+- заявка на конференц-зал;
+- просмотр своих бронирований и заявок в профиле;
+- редактирование профиля;
+- внутренние уведомления в Filament.
+
+### Административная часть
+
+Админ-панель находится в `/admin`. Доступ разрешен только пользователям с ролью `Admin`, если они не заблокированы.
+
+Реализовано:
+
+- dashboard с показателями текущего дня;
+- список броней рабочих мест;
+- календарь всех бронирований;
+- заявки на конференц-зал;
+- одобрение и отклонение заявок;
+- комментарий администратора при отклонении;
+- справочник рабочих мест;
+- массовое создание рабочих мест по диапазону номеров;
+- включение и отключение рабочих мест;
+- закрепление рабочего места за конкретным пользователем;
+- настройка режима работы общего зала;
+- управление мероприятиями;
+- управление пользователями;
+- блокировка и разблокировка пользователей;
+- отчеты и экспорт `.xlsx`;
+- журнал действий в коде и базе.
+
+Журнал действий реализован как ресурс и таблица `activity_logs`, но отдельным пунктом меню в админке сейчас не показывается.
+
+### Текущее состояние относительно ТЗ
+
+Большая часть базового ТЗ закрыта. Есть несколько моментов, которые стоит учитывать при передаче проекта:
+
+- Google/iCloud OAuth в текущей версии не подключен.
+- Email, Google и iCloud уведомления не подключены. Основной канал уведомлений сейчас - database notifications внутри Filament.
+- Отдельного публичного API нет. Если нужен свой фронтенд, API или мобильное приложение, их нужно добавить поверх существующих сервисов.
+- Весь текущий UI сделан на Filament, включая регистрацию, вход, профиль, пользовательский кабинет и админку.
+
+## Роли и доступ
+
+Роли описаны в `app/Enums/UserRole.php`:
+
+- `Admin` - доступ к `/admin` и всем административным разделам.
+- `User` - доступ к `/app` и своим данным.
+
+Модель `App\Models\User` реализует `FilamentUser` и сама решает, может ли пользователь открыть конкретную панель:
+
+- заблокированный пользователь не может открыть ни одну панель;
+- обычный пользователь открывает только `/app`;
+- администратор открывает `/admin` и `/app`.
+
+## Основные модели
+
+- `User` - резиденты и администраторы. Хранит ФИО, email, ИИН, телефон, должность, компанию, роль, статус блокировки и дату принятия правил.
+- `Workspace` - рабочее место в общем зале. Содержит номер, зону, название, порядок сортировки, активность и закрепленного пользователя.
+- `WorkspaceBooking` - бронь рабочего места.
+- `WorkspaceScheduleSetting` - режим работы общего зала с даты начала действия.
+- `ConferenceRoomRequest` - заявка на конференц-зал.
+- `Event` - мероприятие или анонс.
+- `ActivityLog` - журнал действий.
+
+Статусы вынесены в enum:
+
+- `WorkspaceBookingStatus` - `active`, `cancelled`, `completed`.
+- `ConferenceRoomRequestStatus` - `pending`, `approved`, `rejected`, `cancelled`, `completed`.
+- `UserRole` - `admin`, `user`.
+
+## Бизнес-логика
+
+Главная логика лежит в `app/Services`. Если нужно подключать другой дизайн, в первую очередь смотреть сюда.
+
+### Рабочие места
+
+Файлы:
+
+- `app/Services/WorkspaceBookingService.php`
+- `app/Services/WorkspaceAvailability.php`
+- `app/Services/WorkspaceScheduleService.php`
+- `app/Filament/App/Resources/WorkspaceBookings/*`
+- `app/Filament/Resources/Workspaces/*`
+- `app/Filament/Resources/WorkspaceScheduleSettings/*`
+
+Правила:
+
+- рабочее место бронируется только на текущий день;
+- пользователь выбирает конкретное активное место;
+- закрепленное место доступно только закрепленному пользователю;
+- время должно попадать в режим работы общего зала;
+- если отдельный режим работы не задан, используется `09:00 - 18:00`;
+- пересекающиеся активные бронирования запрещены;
+- отмененная бронь не блокирует место;
+- при выборе места система подставляет ближайший свободный час;
+- можно забронировать место на весь рабочий день.
+
+Для карты зала используется `WorkspaceAvailability::hallMapForUser()`. Метод возвращает список мест со статусами: свободно, частично занято, занято, занято весь день, мое бронирование.
+
+### Конференц-зал
+
+Файлы:
+
+- `app/Services/ConferenceRoomRequestService.php`
+- `app/Services/ConferenceRoomAvailability.php`
+- `app/Filament/App/Resources/ConferenceRoomRequests/*`
+- `app/Filament/Resources/ConferenceRoomRequests/*`
+
+Правила:
+
+- пользователь отправляет заявку, а не получает автоматическое подтверждение;
+- новая заявка создается в статусе `На рассмотрении`;
+- администратор может одобрить, отклонить или отменить заявку;
+- при отклонении можно указать комментарий;
+- в дневной лимит входят заявки `На рассмотрении` и `Одобрено`;
+- лимит на пользователя - 2 часа в день;
+- активные заявки не могут пересекаться по времени;
+- форма показывает занятые интервалы и ближайший свободный час.
+
+### Мероприятия
+
+Файлы:
+
+- `app/Models/Event.php`
+- `app/Filament/Resources/Events/*`
+- `app/Filament/App/Widgets/HubNewsWidget.php`
+
+Администратор создает мероприятия через `/admin/events`. Пользователь видит ближайшие события на главной странице `/app`.
+
+### Отчеты
+
+Файлы:
+
+- `app/Filament/Pages/Reports.php`
+- `resources/views/filament/pages/reports.blade.php`
+- `app/Http/Controllers/ReportExportController.php`
+- `app/Services/BookingReportExporter.php`
+
+Отчет доступен только администратору. Выгрузка формируется в `.xlsx` за выбранный период и включает:
+
+- ФИО пользователя;
+- компанию;
+- тип бронирования;
+- рабочее место или конференц-зал;
+- номер места;
+- дату;
+- время начала и окончания;
+- количество часов;
+- статус.
+
+### Уведомления и журнал
+
+Файлы:
+
+- `app/Notifications/SystemNotification.php`
+- `app/Services/ActivityLogger.php`
+- `app/Models/ActivityLog.php`
+
+Система пишет внутренние уведомления при регистрации, создании и отмене броней, создании и изменении статусов заявок. Журнал фиксирует регистрацию, вход, обновление профиля, создание и отмену броней, решения по заявкам, блокировку и разблокировку пользователей.
+
+## Где лежит UI
+
+Так как проект на Filament, UI разбит по двум панелям.
+
+Админка:
+
+- `app/Providers/Filament/AdminPanelProvider.php`
+- `app/Filament/Pages/*`
+- `app/Filament/Widgets/*`
+- `app/Filament/Resources/*`
+- `resources/views/filament/pages/*`
+- `resources/views/filament/widgets/*`
+
+Пользовательская панель:
+
+- `app/Providers/Filament/AppPanelProvider.php`
+- `app/Filament/App/Pages/*`
+- `app/Filament/App/Pages/Auth/*`
+- `app/Filament/App/Resources/*`
+- `app/Filament/App/Widgets/*`
+- `resources/views/filament/app/*`
+
+Темы:
+
+- `resources/css/filament/admin/theme.css`
+- `resources/css/filament/app/theme.css`
+
+Если нужен свой дизайн, эти Filament views и resources можно заменить или оставить только для админки. Бизнес-логику лучше не переносить во frontend, а вызывать Laravel-сервисы.
+
+## Как использовать функционал с другим дизайном
+
+Проект можно использовать как backend-основу. Самый нормальный путь:
+
+1. Оставить миграции, модели, enum и сервисы.
+2. Оставить Filament-админку, если она подходит для менеджеров.
+3. Для нового пользовательского дизайна сделать свои Blade/Livewire/Inertia/Vue/React страницы.
+4. В новых страницах вызывать существующие сервисы, а не писать проверки заново.
+
+Примеры точек подключения:
+
+```php
+app(\App\Services\WorkspaceAvailability::class)
+    ->hallMapForUser($user, now()->toDateString());
+```
+
+```php
+app(\App\Services\WorkspaceBookingService::class)
+    ->create($user, [
+        'workspace_id' => $workspaceId,
+        'booking_date' => now()->toDateString(),
+        'starts_at' => '10:00',
+        'ends_at' => '11:00',
+    ]);
+```
+
+```php
+app(\App\Services\ConferenceRoomRequestService::class)
+    ->create($user, [
+        'booking_date' => '2026-06-24',
+        'starts_at' => '14:00',
+        'ends_at' => '15:00',
+        'purpose' => 'Встреча команды',
+    ]);
+```
+
+```php
+app(\App\Services\BookingReportExporter::class)
+    ->export('2026-06-01', '2026-06-30');
+```
+
+Так новый интерфейс получит те же ограничения: проверку конфликтов, лимит 2 часа на конференц-зал, доступность рабочих мест, режим работы зала, уведомления и логирование.
+
+## База данных
+
+Ключевые таблицы:
+
+- `users`
+- `workspaces`
+- `workspace_bookings`
+- `workspace_schedule_settings`
+- `conference_room_requests`
+- `events`
+- `notifications`
+- `activity_logs`
+
+Миграции лежат в `database/migrations`.
+
+## Документация по логике
+
+В проекте есть отдельная документация, ее стоит читать перед изменением бизнес-логики:
+
+- `docs/technical-specification.md` - общее ТЗ.
+- `docs/business-rules.md` - правила, статусы, ограничения и доступы.
+- `docs/modules/auth.md` - регистрация, вход, профиль и роли.
+- `docs/modules/bookings.md` - рабочие места, конференц-зал, календарь.
+- `docs/modules/events-and-reports.md` - мероприятия, отчеты, журнал.
+- `docs/changelog.md` - история изменений поведения.
+
+Если меняются правила бронирования, статусы, доступы, отчеты или логика модулей, нужно обновлять соответствующие файлы в `docs/`.
+
+## Тесты
+
+Тесты находятся в `tests/Feature` и `tests/Unit`.
+
+Основные проверки:
+
+- регистрация требует принятия правил;
+- вход работает по телефону и ИИН;
+- заблокированный пользователь не входит;
+- панели разделены по ролям;
+- пользовательские и админские Filament-страницы рендерятся;
+- рабочее место нельзя бронировать на другой день;
+- пересечения броней запрещены;
+- ближайший свободный слот считается автоматически;
+- режим работы зала влияет на доступные слоты;
+- бронирование на весь рабочий день работает;
+- заявки на конференц-зал проверяют конфликты и лимит 2 часа.
+
+Запуск:
 
 ```bash
-make build
+make test
 ```
 
-For deploy on a server:
+## Docker и деплой
+
+Docker-сборка использует FrankenPHP и Laravel Octane. В `docker-compose.yml` есть сервисы:
+
+- `app` - Laravel + Octane;
+- `queue` - обработчик очередей;
+- `scheduler` - Laravel scheduler;
+- `db` - MariaDB;
+- `redis` - Redis;
+- `vite` - локальный Vite dev server в override-конфиге.
+
+Для продакшена в `Makefile` есть команда:
 
 ```bash
 make deploy
 ```
+
+Она выполняет `git pull`, пересобирает контейнеры, запускает миграции и перезапускает queue workers.
+
+## AI и Laravel Boost
+
+В проекте подключен Laravel Boost для работы с AI-агентами:
+
+- `AGENTS.md` - правила для агента;
+- `.ai/guidelines/*` - проектные guidelines;
+- `.agents/skills/*` - skills для Laravel, Octane и Tailwind;
+- `mcp.json` и `.codex/config.toml` - MCP-конфигурация;
+- `boost.json` - выбранные Boost-настройки.
+
+На работу приложения для пользователей это напрямую не влияет. Это нужно разработчикам, чтобы AI-агент видел версии пакетов, документацию, схему базы, логи и правила проекта.
+
+## Что важно не сломать при доработке
+
+- Не дублировать правила бронирований только на фронтенде. Финальная проверка должна оставаться в сервисах.
+- Не хранить ИИН открыто для поиска: в модели используется encrypted cast для `iin` и отдельный `iin_hash`.
+- Не удалять рабочие места с историей броней. Для таких случаев есть отключение.
+- Не давать обычным пользователям доступ к `/admin`, отчетам и чужим данным.
+- При изменении бизнес-логики обновлять `docs/`.
+- После изменения PHP-кода запускать форматирование и тесты по правилам проекта.
